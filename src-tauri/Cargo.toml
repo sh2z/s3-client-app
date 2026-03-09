@@ -1,0 +1,47 @@
+[package]
+name = "s3-client-app"
+version = "0.1.0"
+description = "A S3 object storage desktop application"
+authors = ["you"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1.0"
+uuid = { version = "1", features = ["v4"] }
+dirs = "5.0"
+log = "0.4"
+tokio = { version = "1", features = ["full"] }
+aws-config = { version = "1.8" }
+aws-sdk-s3 = { version = "1.119", features = ["http-1x"] }
+aws-smithy-types = "1.0"
+urlencoding = "2.1"
+futures = "0.3"
+walkdir = "2"
+lazy_static = "1.4"
+bytes = "1"
+http-body-0-4 = { package = "http-body", version = "0.4" }
+tokio-util = { version = "0.7", features = ["io"] }
+http = "0.2"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+
+[dev-dependencies]
+tempfile = "3"

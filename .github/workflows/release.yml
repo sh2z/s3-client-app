@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  # 推送到 main 分支时触发测试构建（不发布）
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  # 推送 tag 时触发发布
+  push:
+    tags:
+      - 'v*'
+  # 支持手动触发
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: '创建为草稿发布'
+        required: false
+        default: 'false'
+
+jobs:
+  # 构建阶段
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows
+          - platform: 'windows-latest'
+            args: '--target x86_64-pc-windows-msvc'
+            name: 'Windows x64'
+          # macOS Intel
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            name: 'macOS Intel'
+          # macOS Apple Silicon
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            name: 'macOS Apple Silicon'
+          # macOS Universal
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            name: 'macOS Universal'
+          # Linux
+          - platform: 'ubuntu-22.04'
+            args: '--target x86_64-unknown-linux-gnu'
+            name: 'Linux x64'
+
+    runs-on: ${{ matrix.platform }}
+    name: Build ${{ matrix.name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install dependencies (Ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          args: ${{ matrix.args }}
+          # 只在推送 tag 时发布
+          releaseId: ${{ startsWith(github.ref, 'refs/tags/v') && needs.create-release.outputs.release_id || '' }}
+
+      - name: Upload artifacts (non-tag builds)
+        if: '!startsWith(github.ref, ''refs/tags/v'')'
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.name }}
+          path: |
+            src-tauri/target/*/release/bundle/**/*.msi
+            src-tauri/target/*/release/bundle/**/*.exe
+            src-tauri/target/*/release/bundle/**/*.dmg
+            src-tauri/target/*/release/bundle/**/*.AppImage
+            src-tauri/target/*/release/bundle/**/*.deb
+
+  # 创建 Release（只在推送 tag 时执行）
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+    steps:
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          body: |
+            ## S3 Client App ${{ github.ref_name }}
+
+            ### 安装包
+
+            | 平台 | 安装包 |
+            |------|--------|
+            | Windows x64 | `.msi` 或 `.exe` |
+            | macOS Intel | `.dmg` (x64) |
+            | macOS Apple Silicon | `.dmg` (aarch64) |
+            | macOS Universal | `.dmg` (universal) |
+            | Linux x64 | `.AppImage` 或 `.deb` |
+
+            ### 系统要求
+
+            - **Windows**: Windows 10/11，自动安装 WebView2
+            - **macOS**: macOS 10.15+
+            - **Linux**: Ubuntu 20.04+ / Fedora 35+ / Debian 11+
+
+            ### 注意事项
+
+            - macOS 版本已签名，但可能需要右键打开
+            - Windows 版本会自动处理 WebView2 依赖
