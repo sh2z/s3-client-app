@@ -4,13 +4,11 @@ on:
   # 推送到 main 分支时触发测试构建（不发布）
   push:
     branches: [main]
+    tags:
+      - 'v*'
     paths-ignore:
       - '**.md'
       - '.gitignore'
-  # 推送 tag 时触发发布
-  push:
-    tags:
-      - 'v*'
   # 支持手动触发
   workflow_dispatch:
     inputs:
@@ -20,8 +18,44 @@ on:
         default: 'false'
 
 jobs:
+  # 创建 Release（只在推送 tag 时执行）
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+    steps:
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          body: |
+            ## S3 Client App ${{ github.ref_name }}
+
+            ### 安装包
+
+            | 平台 | 安装包 |
+            |------|--------|
+            | macOS Intel | `.dmg` (x64) |
+            | macOS Apple Silicon | `.dmg` (aarch64) |
+
+            ### 系统要求
+
+            - **macOS**: macOS 10.15+
+
+            ### 注意事项
+
+            - macOS 版本已签名，但可能需要右键打开
+
   # 构建阶段
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -83,38 +117,4 @@ jobs:
             src-tauri/target/*/release/bundle/**/*.AppImage
             src-tauri/target/*/release/bundle/**/*.deb
 
-  # 创建 Release（只在推送 tag 时执行）
-  create-release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
-    outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
-    steps:
-      - name: Create Release
-        id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          draft: ${{ github.event.inputs.draft == 'true' }}
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
-          body: |
-            ## S3 Client App ${{ github.ref_name }}
 
-            ### 安装包
-
-            | 平台 | 安装包 |
-            |------|--------|
-            | macOS Intel | `.dmg` (x64) |
-            | macOS Apple Silicon | `.dmg` (aarch64) |
-
-            ### 系统要求
-
-            - **macOS**: macOS 10.15+
-
-            ### 注意事项
-
-            - macOS 版本已签名，但可能需要右键打开
