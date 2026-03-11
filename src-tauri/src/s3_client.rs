@@ -6,7 +6,6 @@ use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::presigning::PresigningConfig;
 use aws_sdk_s3::Client;
 use aws_sdk_s3::Config;
-use aws_smithy_types::body::SdkBody;
 use bytes::Bytes;
 use crate::config_manager::DataSource;
 use futures::stream::Stream;
@@ -21,7 +20,6 @@ use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::sync::Notify;
-use tokio_util::io::ReaderStream;
 use urlencoding::encode;
 use lazy_static::lazy_static;
 use http_body_0_4::Body;
@@ -671,6 +669,8 @@ impl S3Operations {
     }
 
     /// Upload file
+    /// 参考 s3-example-cli 的实现，不设置 content_length 和 content_type
+    /// 兼容自建 S3 服务器（如 Ceph、MinIO）
     pub async fn upload_file(
         config: &DataSource,
         local_path: &str,
@@ -679,29 +679,36 @@ impl S3Operations {
         control: Option<Arc<TransferControl>>,
     ) -> Result<()> {
         let client = Self::create_client(config).await;
-        let file = File::open(local_path).await
-            .with_context(|| format!("Failed to open local file: {}", local_path))?;
-        let metadata = file.metadata().await
-            .with_context(|| format!("Failed to read file metadata: {}", local_path))?;
-        let total = Some(metadata.len());
-        let stream = ReaderStream::with_capacity(file, 256 * 1024);
-        let body = ProgressBody::new(stream, total, progress, control);
-        let body_into = ByteStream::new(SdkBody::from_body_0_4(body));
         
-        // Guess content type from file path
-        let content_type = guess_mime_type(local_path);
+        // Report initial progress (0%)
+        if let Some(ref progress) = progress {
+            progress(0, None);
+        }
+        
+        // Check control before uploading
+        if let Some(ref control) = control {
+            control.wait_if_paused().await;
+        }
+        
+        // 读取文件内容（参考 s3-example-cli 的实现）
+        let body = tokio::fs::read(local_path).await
+            .with_context(|| format!("Failed to read file: {}", local_path))?;
+        let body_stream = ByteStream::from(body);
         
         let result = client
             .put_object()
             .bucket(&config.bucket)
             .key(key)
-            .content_type(content_type)
-            .body(body_into)
+            .body(body_stream)
             .send()
             .await;
             
         match result {
             Ok(_) => {
+                // Report completion
+                if let Some(ref progress) = progress {
+                    progress(1, Some(1));
+                }
                 info!("File {} uploaded successfully.", key);
                 Ok(())
             }
@@ -713,6 +720,8 @@ impl S3Operations {
     }
     
     /// Upload file from bytes
+    /// 参考 s3-example-cli 的实现，不设置 content_length 和 content_type
+    /// 兼容自建 S3 服务器（如 Ceph、MinIO）
     pub async fn upload_file_bytes(
         config: &DataSource,
         data: &[u8],
@@ -721,35 +730,34 @@ impl S3Operations {
         control: Option<Arc<TransferControl>>,
     ) -> Result<()> {
         let client = Self::create_client(config).await;
-        let owned = data.to_vec();
-        let total = Some(owned.len() as u64);
-        let chunk_size = 256 * 1024;
-        let chunks: Vec<Bytes> = owned
-            .chunks(chunk_size)
-            .map(Bytes::copy_from_slice)
-            .collect();
-        let stream = futures::stream::iter(
-            chunks
-                .into_iter()
-                .map(|chunk| Ok::<Bytes, std::io::Error>(chunk)),
-        );
-        let body = ProgressBody::new(stream, total, progress, control);
-        let body_into = ByteStream::new(SdkBody::from_body_0_4(body));
         
-        // Guess content type from key
-        let content_type = guess_mime_type(key);
+        // Report initial progress (0%)
+        if let Some(ref progress) = &progress {
+            progress(0, None);
+        }
+        
+        // Check control before uploading
+        if let Some(ref control) = control {
+            control.wait_if_paused().await;
+        }
+        
+        // 直接使用 ByteStream::from（参考 s3-example-cli 的实现）
+        let body = ByteStream::from(data.to_vec());
         
         let result = client
             .put_object()
             .bucket(&config.bucket)
             .key(key)
-            .content_type(content_type)
-            .body(body_into)
+            .body(body)
             .send()
             .await;
             
         match result {
             Ok(_) => {
+                // Report completion
+                if let Some(ref progress) = progress {
+                    progress(1, Some(1));
+                }
                 info!("File {} uploaded successfully from bytes.", key);
                 Ok(())
             }

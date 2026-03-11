@@ -152,7 +152,24 @@ impl ConfigManager {
         let mut found = false;
         for s in config.data_sources.iter_mut() {
             if s.id == source.id {
-                *s = source;
+                // 如果新值的 access_key 或 secret_key 为空，保留原来的值
+                // 这样可以支持部分更新（例如只修改名称时不影响凭证）
+                let access_key = if source.access_key.is_empty() {
+                    s.access_key.clone()
+                } else {
+                    source.access_key.clone()
+                };
+                let secret_key = if source.secret_key.is_empty() {
+                    s.secret_key.clone()
+                } else {
+                    source.secret_key.clone()
+                };
+                
+                *s = DataSourceConfig {
+                    access_key,
+                    secret_key,
+                    ..source
+                };
                 found = true;
                 break;
             }
@@ -375,6 +392,58 @@ mod tests {
 
         let found = manager.get_data_source("1").unwrap();
         assert_eq!(found.unwrap().name, "Updated Name");
+    }
+
+    #[test]
+    fn test_update_data_source_preserves_credentials_when_empty() {
+        // 测试：当只修改名称时，凭证不应该被清空
+        let (manager, _, _temp) = create_test_manager();
+        let source = create_test_data_source("1", "Original Name");
+        manager.add_data_source(source).unwrap();
+
+        // 模拟前端只修改名称，凭证字段为空字符串的情况
+        let partial_update = DataSourceConfig {
+            id: "1".to_string(),
+            name: "Updated Name".to_string(),
+            bucket: "test-bucket".to_string(),
+            region: "us-east-1".to_string(),
+            access_key: "".to_string(), // 空字符串表示未更改
+            secret_key: "".to_string(), // 空字符串表示未更改
+            endpoint: "https://s3.test.com".to_string(),
+            path_endpoint: None,
+        };
+        manager.update_data_source(partial_update).unwrap();
+
+        let found = manager.get_data_source("1").unwrap().unwrap();
+        assert_eq!(found.name, "Updated Name");
+        // 凭证应该保留原值，而不是被清空
+        assert_eq!(found.access_key, "test-access-key");
+        assert_eq!(found.secret_key, "test-secret-key");
+    }
+
+    #[test]
+    fn test_update_data_source_updates_credentials_when_provided() {
+        // 测试：当提供了新的凭证时，应该更新凭证
+        let (manager, _, _temp) = create_test_manager();
+        let source = create_test_data_source("1", "Test Source");
+        manager.add_data_source(source).unwrap();
+
+        // 提供新的凭证
+        let update_with_credentials = DataSourceConfig {
+            id: "1".to_string(),
+            name: "Test Source".to_string(),
+            bucket: "test-bucket".to_string(),
+            region: "us-east-1".to_string(),
+            access_key: "new-access-key".to_string(),
+            secret_key: "new-secret-key".to_string(),
+            endpoint: "https://s3.test.com".to_string(),
+            path_endpoint: None,
+        };
+        manager.update_data_source(update_with_credentials).unwrap();
+
+        let found = manager.get_data_source("1").unwrap().unwrap();
+        assert_eq!(found.access_key, "new-access-key");
+        assert_eq!(found.secret_key, "new-secret-key");
     }
 
     #[test]

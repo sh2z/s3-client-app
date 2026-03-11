@@ -1093,11 +1093,11 @@ function renderAddModal() {
                     </div>
                     <div class="form-group">
                         <label>Access Key ID</label>
-                        <input type="text" id="source-access-key" placeholder=" value="${isEditing ? escapeHtml(source.access_key || '') : ''}">
+                        <input type="text" id="source-access-key" placeholder="${isEditing ? '已保存 (留空保持不变)' : '可选'}" value="${isEditing && source.access_key ? '********' : ''}">
                     </div>
                     <div class="form-group">
                         <label>Secret Access Key</label>
-                        <input type="password" id="source-secret-key" placeholder=" value="${isEditing ? escapeHtml(source.secret_key || '') : ''}">
+                        <input type="password" id="source-secret-key" placeholder="${isEditing ? '已保存 (留空保持不变)' : '可选'}" value="${isEditing && source.secret_key ? '********' : ''}">
                     </div>
                     <div class="form-group">
                         <label>Endpoint URL <span class="required">*</span></label>
@@ -1417,14 +1417,18 @@ async function handleSaveDataSource() {
     
     try {
         if (isEditing) {
+            // 编辑模式：如果用户输入的是星号占位符，保留原值；否则使用新值
+            const isAccessKeyUnchanged = accessKey === '********' || accessKey === '';
+            const isSecretKeyUnchanged = secretKey === '********' || secretKey === '';
+            
             // 更新现有数据源
             const updatedSource = {
                 ...state.editingSource,
                 name,
                 bucket,
                 region,
-                access_key: accessKey,
-                secret_key: secretKey,
+                access_key: isAccessKeyUnchanged ? state.editingSource.access_key : accessKey,
+                secret_key: isSecretKeyUnchanged ? state.editingSource.secret_key : secretKey,
                 endpoint,
                 path_endpoint: pathEndpoint || null,
             };
