@@ -26,10 +26,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows
-          - platform: 'windows-latest'
-            args: '--target x86_64-pc-windows-msvc'
-            name: 'Windows x64'
           # macOS Intel
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
@@ -38,14 +34,6 @@ jobs:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
             name: 'macOS Apple Silicon'
-          # macOS Universal
-          - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
-            name: 'macOS Universal'
-          # Linux
-          - platform: 'ubuntu-22.04'
-            args: '--target x86_64-unknown-linux-gnu'
-            name: 'Linux x64'
 
     runs-on: ${{ matrix.platform }}
     name: Build ${{ matrix.name }}
@@ -64,12 +52,6 @@ jobs:
         uses: dtolnay/rust-action@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install npm dependencies
         run: npm install
@@ -126,19 +108,13 @@ jobs:
 
             | 平台 | 安装包 |
             |------|--------|
-            | Windows x64 | `.msi` 或 `.exe` |
             | macOS Intel | `.dmg` (x64) |
             | macOS Apple Silicon | `.dmg` (aarch64) |
-            | macOS Universal | `.dmg` (universal) |
-            | Linux x64 | `.AppImage` 或 `.deb` |
 
             ### 系统要求
 
-            - **Windows**: Windows 10/11，自动安装 WebView2
             - **macOS**: macOS 10.15+
-            - **Linux**: Ubuntu 20.04+ / Fedora 35+ / Debian 11+
 
             ### 注意事项
 
             - macOS 版本已签名，但可能需要右键打开
-            - Windows 版本会自动处理 WebView2 依赖
