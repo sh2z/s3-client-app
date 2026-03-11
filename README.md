@@ -5,7 +5,6 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 
-![App Screenshot](design/main.png)
 
 ## ✨ 功能特性
 
