@@ -25,10 +25,18 @@ clippy:
     cargo clippy
 docker:
     docker build -t myapp .
-# Tauri development
+# Tauri builds
 tb:
     npm run tauri build
-tr:    
+tr:
+    npm run tauri dev
+
+# Windows native build (run on Windows)
+tb-win:
+    npm run tauri build
+
+# Windows debug build (run on Windows)
+tb-win-debug:
     npm run tauri dev
 
 # Tauri builds for different macOS architectures
