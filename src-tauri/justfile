@@ -25,9 +25,19 @@ clippy:
     cargo clippy
 docker:
     docker build -t myapp .
+
+# Tauri builds
 tb:
     cargo tauri build
-tr:    
+tr:
+    cargo tauri dev
+
+# Windows native build
+tb-win:
+    cargo tauri build
+
+# Windows debug build
+tb-win-debug:
     cargo tauri dev
 
 macos bin_name="" :

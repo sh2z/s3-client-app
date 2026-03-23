@@ -1,41 +1,93 @@
-# Windows 安装说明
+# Windows 安装和编译说明
 
-## 系统要求
+## 用户安装说明
 
-运行此应用需要安装 **Microsoft Edge WebView2 Runtime**。
+### 系统要求
 
-## 安装步骤
+- **操作系统**: Windows 10/11 (64 位)
+- **运行时**: Microsoft Edge WebView2 Runtime (通常已预装)
 
-### 1. 安装 WebView2 Runtime
+> **注意**: Tauri 2.x 会自动捆绑 WebView2 安装程序，大多数情况下无需单独安装。
 
-访问微软官方下载页面：
-https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+### 安装步骤
 
-下载 **Evergreen Standalone Installer**（常青版独立安装程序）并安装。
+#### 1. 检查 WebView2 是否已安装
 
-或者直接下载：
-https://go.microsoft.com/fwlink/p/?LinkId=2124703
+按 `Win + R`，输入 `appwiz.cpl`，在程序列表中查找 "Microsoft Edge WebView2"。
 
-### 2. 运行应用
+如果未安装，请下载安装：
+- 官方下载页：https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+- 直接下载：https://go.microsoft.com/fwlink/p/?LinkId=2124703
 
-安装 WebView2 后，直接双击 `s3-client-app.exe` 即可运行。
+#### 2. 运行应用
 
-## 常见问题
+双击 `S3-setup.exe` 或 `S3_x64_en-US.msi` 进行安装，或直接运行 `S3.exe`。
 
-### 错误：找不到 WebView2Loader.dll
+## 开发者编译说明
 
-**原因：** 系统未安装 WebView2 Runtime。
+### 环境准备
 
-**解决：** 按上述步骤 1 安装 WebView2。
+```powershell
+# 1. 安装 Node.js (>= 18)
+# 下载地址：https://nodejs.org/
 
-### 错误：无法启动此程序，因为计算机中丢失 VCRUNTIME140.dll
+# 2. 安装 Rust
+# 下载地址：https://rustup.rs/
+# 或在 PowerShell 中运行：
+winget install Rustlang.Rustup
 
-**原因：** 系统缺少 Visual C++ 运行时库。
+# 3. 安装 Visual Studio 2022
+# 必须安装 "使用 C++ 的桌面开发" 工作负载
+# 下载地址：https://visualstudio.microsoft.com/
 
-**解决：** 下载并安装 Visual C++ Redistributable：
-https://aka.ms/vs/17/release/vc_redist.x64.exe
+# 4. 安装依赖
+npm install
+```
 
-## 替代方案：使用 Web 版本
+### 编译命令
 
-如果无法安装 WebView2，可以访问网页版：
-（此处可填写你的 Web 版本地址）
+```powershell
+# 使用 just 工具（推荐）
+just tb-win
+
+# 或使用 npm
+npm run tauri build
+
+# 调试模式
+just tb-win-debug
+# 或
+npm run tauri dev
+```
+
+### 输出文件
+
+编译完成后，生成的文件位于：
+```
+src-tauri/target/release/bundle/
+├── msi/          # MSI 安装包
+│   └── S3_0.1.0_x64_en-US.msi
+└── nsis/         # NSIS 安装包
+    └── S3-setup.exe
+```
+
+### 常见问题
+
+#### 错误：找不到 WebView2Loader.dll
+
+**解决**: 安装 WebView2 Runtime（见上述步骤 1）
+
+#### 错误：找不到 MSVCP140.dll 或 VCRUNTIME140.dll
+
+**解决**: 安装 Visual C++ Redistributable
+```powershell
+winget install Microsoft.VCRedist.2015+.x64
+```
+或下载：https://aka.ms/vs/17/release/vc_redist.x64.exe
+
+#### 编译错误：找不到 "link.exe"
+
+**解决**: 确保 Visual Studio 2022 安装了 "使用 C++ 的桌面开发" 工作负载
+
+#### 编译错误：找不到 Windows SDK
+
+**解决**: 在 Visual Studio Installer 中添加 "Windows 10/11 SDK" 组件

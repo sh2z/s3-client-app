@@ -1,5 +1,6 @@
 export RUST_LOG :="info"
 final_bin_name := "cli"
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 run:
     cargo run
@@ -25,10 +26,18 @@ clippy:
     cargo clippy
 docker:
     docker build -t myapp .
-# Tauri development
+# Tauri builds
 tb:
     npm run tauri build
-tr:    
+tr:
+    npm run tauri dev
+
+# Windows native build (run on Windows)
+tb-win:
+    npm run tauri build
+
+# Windows debug build (run on Windows)
+tb-win-debug:
     npm run tauri dev
 
 # Tauri builds for different macOS architectures
