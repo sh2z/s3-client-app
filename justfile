@@ -1,5 +1,6 @@
 export RUST_LOG :="info"
 final_bin_name := "cli"
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 run:
     cargo run
