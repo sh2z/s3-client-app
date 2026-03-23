@@ -1093,11 +1093,17 @@ function renderAddModal() {
                     </div>
                     <div class="form-group">
                         <label>Access Key ID</label>
-                        <input type="text" id="source-access-key" placeholder="${isEditing ? '已保存 (留空保持不变)' : '可选'}" value="${isEditing && source.access_key ? '********' : ''}">
+                        <div class="input-with-copy">
+                            <input type="text" id="source-access-key" placeholder="${isEditing ? '已保存 (留空保持不变)' : '可选'}" value="${isEditing && source.access_key ? escapeHtml(source.access_key) : ''}">
+                            <button type="button" class="btn-copy" onclick="copyToClipboard('source-access-key')" title="复制 Access Key">📋</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Secret Access Key</label>
-                        <input type="password" id="source-secret-key" placeholder="${isEditing ? '已保存 (留空保持不变)' : '可选'}" value="${isEditing && source.secret_key ? '********' : ''}">
+                        <div class="input-with-copy">
+                            <input type="text" id="source-secret-key" placeholder="${isEditing ? '已保存 (留空保持不变)' : '可选'}" value="${isEditing && source.secret_key ? escapeHtml(source.secret_key) : ''}">
+                            <button type="button" class="btn-copy" onclick="copyToClipboard('source-secret-key')" title="复制 Secret Key">📋</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Endpoint URL <span class="required">*</span></label>
@@ -1158,6 +1164,24 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+async function copyToClipboard(elementId) {
+    const input = document.getElementById(elementId);
+    if (!input || !input.value) {
+        showToast('没有可复制的内容', 'error');
+        return;
+    }
+    
+    try {
+        await navigator.clipboard.writeText(input.value);
+        showToast('已复制到剪贴板', 'success');
+    } catch (err) {
+        // 降级方案：使用 select + execCommand
+        input.select();
+        document.execCommand('copy');
+        showToast('已复制到剪贴板', 'success');
+    }
 }
 
 function positionContextMenu(menuSelector, preferredX, preferredY) {
@@ -1417,10 +1441,10 @@ async function handleSaveDataSource() {
     
     try {
         if (isEditing) {
-            // 编辑模式：如果用户输入的是星号占位符，保留原值；否则使用新值
-            const isAccessKeyUnchanged = accessKey === '********' || accessKey === '';
-            const isSecretKeyUnchanged = secretKey === '********' || secretKey === '';
-            
+            // 编辑模式：如果用户留空，保留原值；否则使用新值
+            const isAccessKeyUnchanged = accessKey === '';
+            const isSecretKeyUnchanged = secretKey === '';
+
             // 更新现有数据源
             const updatedSource = {
                 ...state.editingSource,

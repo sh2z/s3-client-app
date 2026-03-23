@@ -1101,6 +1101,42 @@ body {
     margin-top: 6px;
 }
 
+/* Input with copy button */
+.form-group .input-with-copy {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.form-group .input-with-copy input {
+    flex: 1;
+    min-width: 0;
+}
+
+.form-group .btn-copy {
+    padding: 8px 12px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.form-group .btn-copy:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent-color);
+}
+
+.form-group .btn-copy:active {
+    transform: scale(0.95);
+}
+
 .modal-footer {
     padding: 16px 24px 24px;
     display: flex;
