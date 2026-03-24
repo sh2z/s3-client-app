@@ -42,16 +42,22 @@ jobs:
 
             | 平台 | 安装包 |
             |------|--------|
-            | macOS Intel | `.dmg` (x64) |
-            | macOS Apple Silicon | `.dmg` (aarch64) |
+            | macOS Intel | `S3_${{ github.ref_name }}_x64.dmg` |
+            | macOS Apple Silicon | `S3_${{ github.ref_name }}_aarch64.dmg` |
+            | Windows x64 | `S3_${{ github.ref_name }}_x64-setup.exe` 或 `S3_${{ github.ref_name }}_x64_en-US.msi` |
+            | Linux x64 | `S3_x64.app.tar.gz` |
+            | Linux ARM64 | `S3_aarch64.app.tar.gz` |
 
             ### 系统要求
 
             - **macOS**: macOS 10.15+
+            - **Windows**: Windows 10/11
+            - **Linux**: 主流发行版（Ubuntu 20.04+ / Fedora 35+ / Debian 11+）
 
             ### 注意事项
 
             - macOS 版本已签名，但可能需要右键打开
+            - Windows 版本推荐使用 `.msi` 安装包进行标准安装，或使用 `.exe` 进行便携安装
 
   # 构建阶段
   build:
